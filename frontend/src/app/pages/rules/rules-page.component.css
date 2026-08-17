@@ -43,6 +43,33 @@ button {
   background: rgba(255, 214, 206, 0.15);
 }
 
+button:disabled,
+input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.load-state {
+  margin: 0.8rem 0 0;
+  color: var(--text-secondary);
+}
+
+.load-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.8rem;
+  color: #ffb1a7;
+}
+
+.validation-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #ffb1a7;
+  font-size: 0.85rem;
+}
+
 .split {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));

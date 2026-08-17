@@ -23,6 +23,8 @@
       </button>
     </form>
 
-    <p class="error" *ngIf="errorMessage">{{ errorMessage }}</p>
+    @if (errorMessage) {
+      <p class="error" role="alert">{{ errorMessage }}</p>
+    }
   </section>
 </div>

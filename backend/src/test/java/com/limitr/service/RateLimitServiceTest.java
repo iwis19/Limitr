@@ -2,6 +2,7 @@ package com.limitr.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.limitr.domain.RateLimitWindow;
@@ -12,14 +13,15 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
 
 class RateLimitServiceTest {
 
     @Test
     void fixedWindowCounterPersistsAcrossServiceInstances() {
         RateLimitWindowRepositoryFixture fixture = new RateLimitWindowRepositoryFixture();
-        RateLimitService writer = new RateLimitService(fixture.repository);
-        RateLimitService reader = new RateLimitService(fixture.repository);
+        RateLimitService writer = new RateLimitService(new RateLimitWindowService(fixture.repository));
+        RateLimitService reader = new RateLimitService(new RateLimitWindowService(fixture.repository));
 
         RateLimitService.RateLimitDecision first = writer.check("client-a", 2);
         RateLimitService.RateLimitDecision second = writer.check("client-a", 2);
@@ -31,6 +33,37 @@ class RateLimitServiceTest {
         assertEquals(0, second.remaining());
         assertFalse(third.allowed());
         assertEquals(2, fixture.onlyWindow().getRequestCount());
+    }
+
+    @Test
+    void retriesFirstWindowInsertCollisionInACleanTransaction() {
+        RateLimitService.RateLimitDecision expected = new RateLimitService.RateLimitDecision(true, 60, 59, 42);
+        RetryOnceRateLimitWindowService windowService = new RetryOnceRateLimitWindowService(expected);
+
+        RateLimitService.RateLimitDecision actual = new RateLimitService(windowService).check("client-a", 60);
+
+        assertSame(expected, actual);
+        assertEquals(2, windowService.attempts);
+    }
+
+    private static class RetryOnceRateLimitWindowService extends RateLimitWindowService {
+
+        private final RateLimitService.RateLimitDecision decision;
+        private int attempts;
+
+        RetryOnceRateLimitWindowService(RateLimitService.RateLimitDecision decision) {
+            super(null);
+            this.decision = decision;
+        }
+
+        @Override
+        public RateLimitService.RateLimitDecision checkInNewTransaction(String principalId, int limitPerMinute) {
+            attempts++;
+            if (attempts == 1) {
+                throw new DataIntegrityViolationException("duplicate first window");
+            }
+            return decision;
+        }
     }
 
     private static class RateLimitWindowRepositoryFixture {
@@ -54,7 +87,7 @@ class RateLimitServiceTest {
                             Long epochMinute = (Long) args[1];
                             yield Optional.ofNullable(windows.get(key(principalId, epochMinute)));
                         }
-                        case "save" -> {
+                        case "saveAndFlush" -> {
                             RateLimitWindow window = (RateLimitWindow) args[0];
                             if (window.getId() == null) {
                                 window.setId(sequence.incrementAndGet());

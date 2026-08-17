@@ -24,7 +24,7 @@ public class ApiClient {
     @Column(unique = true, nullable = false)
     private String principalId;
 
-    @Column(nullable = false)
+    @Column(unique = true, nullable = false, length = 64)
     private String apiKeyHash;
 
     @Enumerated(EnumType.STRING)

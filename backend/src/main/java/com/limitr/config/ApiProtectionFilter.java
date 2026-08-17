@@ -59,7 +59,8 @@ public class ApiProtectionFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
-        return !path.startsWith("/api/") || path.startsWith("/api/public/");
+        boolean apiPath = "/api".equals(path) || path.startsWith("/api/");
+        return !apiPath || path.startsWith("/api/public/");
     }
 
     @Override

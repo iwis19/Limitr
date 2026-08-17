@@ -1,18 +1,20 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { AdminApiService } from '../../services/admin-api.service';
 import { RequestLogItem } from '../../services/admin-api.types';
+import { buildCsvRow } from '../../services/csv.util';
 
 @Component({
-  selector: 'app-logs-page',
-  standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
-  templateUrl: './logs-page.component.html',
-  styleUrls: ['./logs-page.component.css']
+    selector: 'app-logs-page',
+    imports: [CommonModule, ReactiveFormsModule],
+    templateUrl: './logs-page.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
+    styleUrls: ['./logs-page.component.css']
 })
 export class LogsPageComponent implements OnInit {
   loading = false;
+  error = '';
   rows: RequestLogItem[] = [];
 
   filterForm = this.formBuilder.group({
@@ -44,6 +46,8 @@ export class LogsPageComponent implements OnInit {
 
   search(): void {
     this.loading = true;
+    this.error = '';
+    this.rows = [];
     const values = this.filterForm.getRawValue();
     this.adminApiService.getLogs({
       principalId: values.principalId || undefined,
@@ -54,6 +58,7 @@ export class LogsPageComponent implements OnInit {
         this.loading = false;
       },
       error: () => {
+        this.error = 'Unable to load request logs. Check the filters and backend connection, then try again.';
         this.loading = false;
       }
     });
@@ -83,21 +88,21 @@ export class LogsPageComponent implements OnInit {
     ];
 
     const csvRows = [
-      header.join(','),
+      buildCsvRow(header),
       ...this.rows.map((row) =>
-        [
-          this.escapeCsvValue(row.timestamp),
-          this.escapeCsvValue(row.principalId),
-          this.escapeCsvValue(row.ipAddress),
-          this.escapeCsvValue(row.httpMethod),
-          this.escapeCsvValue(row.path),
-          row.statusCode.toString(),
-          row.latencyMs.toString()
-        ].join(',')
+        buildCsvRow([
+          row.timestamp,
+          row.principalId,
+          row.ipAddress,
+          row.httpMethod,
+          row.path,
+          row.statusCode,
+          row.latencyMs
+        ])
       )
     ];
 
-    const csv = csvRows.join('\n');
+    const csv = csvRows.join('\r\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -106,10 +111,5 @@ export class LogsPageComponent implements OnInit {
     link.download = `request-logs-${stamp}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-  }
-
-  private escapeCsvValue(value: string): string {
-    const escaped = value.replace(/"/g, '""');
-    return `"${escaped}"`;
   }
 }

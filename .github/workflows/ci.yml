@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.15.0"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Type-check frontend
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Build and embed frontend
+        working-directory: frontend
+        run: npm run build:backend
+
+      - name: Check production dependencies
+        working-directory: frontend
+        run: npm audit --omit=dev
+
+      - name: Verify embedded frontend is current
+        run: git diff --exit-code -- backend/src/main/resources/static
+
+      - name: Verify backend
+        working-directory: backend
+        run: mvn -B clean verify

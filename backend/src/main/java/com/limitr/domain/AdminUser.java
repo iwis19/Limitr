@@ -26,6 +26,9 @@ public class AdminUser {
     @Column(nullable = false)
     private String role;
 
+    @Column(name = "bootstrap_registration_key", unique = true)
+    private String bootstrapRegistrationKey;
+
     @Column(nullable = false)
     private Instant createdAt;
 
@@ -66,6 +69,14 @@ public class AdminUser {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public String getBootstrapRegistrationKey() {
+        return bootstrapRegistrationKey;
+    }
+
+    public void setBootstrapRegistrationKey(String bootstrapRegistrationKey) {
+        this.bootstrapRegistrationKey = bootstrapRegistrationKey;
     }
 
     public Instant getCreatedAt() {

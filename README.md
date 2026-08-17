@@ -37,9 +37,9 @@ Most of the development began locally since a while ago, still maintaining whene
 
 ## Tech Stack
 - **Java 21**
-- **Spring Boot** (Web, Security, Validation, JPA)
+- **Spring Boot 3.5** (Web, Security, Validation, JPA)
 - **PostgreSQL** + **H2**
-- **Angular 18** + **TypeScript**
+- **Angular 22** + **TypeScript 6**
 - **JWT** (`jjwt`)
 - Maven, RxJS
 
@@ -49,43 +49,34 @@ Most of the development began locally since a while ago, still maintaining whene
 
 ### Prerequisites
 - **Java 21**
-- **Node.js 20+**
+- **Node.js 22.22.3+, 24.15.0+, or 26.x**
 - **npm**
 - **Docker Desktop** for PostgreSQL
 - **Maven**
 
-### 1. Start PostgreSQL
+### Quick local start (H2)
+
+The fastest complete development setup uses the in-memory H2 profile. It creates
+the documented local admin and sample API client automatically.
+
+Terminal 1, from the repository root:
+
 ```powershell
-docker compose up -d postgres
+cd backend
+mvn spring-boot:run "-Dspring-boot.run.profiles=h2"
 ```
 
-Default database values:
-- database: `limitr`
-- username: `postgres`
-- password: `postgres`
+Terminal 2, from the repository root:
 
-### 2. Start the backend
 ```powershell
-$env:JWT_SECRET="replace-with-a-long-random-secret-at-least-32-bytes"
-mvn spring-boot:run
-```
-Backend URL:
-- `http://localhost:8080`
-
-Secure startup defaults:
-- `JWT_SECRET` is required for the standard backend startup path.
-- `APP_SEED_ENABLED` defaults to `false`, so no admin or API key is created unless you opt in.
-- `AUTH_REGISTRATION_MODE` defaults to `bootstrap`; switch it to `disabled` after your initial admin exists.
-
-### 3. Start the frontend
-```powershell
-npm install
+cd frontend
+npm ci
 npm start
 ```
-Frontend URL:
-- `http://localhost:4200`
 
-### 4. Local bootstrap credentials
+Open `http://localhost:4200`. The Angular development server proxies `/auth`,
+`/admin`, and `/api` to the backend at `http://localhost:8080`.
+
 Admin login:
 - username: `admin`
 - password: `admin12345`
@@ -94,17 +85,37 @@ Seeded API client:
 - principal id: `local-client`
 - API key: `local-free-key`
 
-These values come from the `SEED_ADMIN_USERNAME`, `SEED_ADMIN_PASSWORD`,
-`SEED_CLIENT_PRINCIPAL_ID`, and `SEED_API_KEY` environment variables. The
-backend only seeds them when `APP_SEED_ENABLED=true` or when you run with the
-`h2` profile. It only logs the non-sensitive admin username at startup.
+These are development-only defaults. Override them when testing anything beyond
+your local machine.
 
-If you want seeded credentials while using PostgreSQL locally:
+### PostgreSQL local start
+
+From the repository root, start PostgreSQL:
+
 ```powershell
+docker compose up -d postgres
+docker compose ps
+```
+
+The local database is `limitr` with username/password `postgres`/`postgres`, and
+its port is bound only to `127.0.0.1`.
+
+Then start the backend from its own directory. Local seeding is explicit because
+the secure default is off:
+
+```powershell
+cd backend
 $env:JWT_SECRET="replace-with-a-long-random-secret-at-least-32-bytes"
 $env:APP_SEED_ENABLED="true"
 mvn spring-boot:run
 ```
+
+Start the frontend with the Terminal 2 commands from the quick local setup.
+
+`JWT_SECRET` is required outside the H2 profile. `APP_SEED_ENABLED` defaults to
+`false`, and `AUTH_REGISTRATION_MODE` defaults to `bootstrap`. For a separately
+hosted frontend, set `CORS_ALLOWED_ORIGINS` to a comma-separated list of its
+trusted origins; the default allows only the local Angular development server.
 
 ### Admin registration lifecycle
 - Public `POST /auth/register` is intended for bootstrap only. In the default `bootstrap` mode it works only until the first admin exists, then it returns `403`.
@@ -112,28 +123,33 @@ mvn spring-boot:run
 - After bootstrap, create additional admins through authenticated `POST /admin/users` requests from an existing admin session.
 - Typical production flow: seed or provision the first admin, set `AUTH_REGISTRATION_MODE=disabled`, then manage future admins through the protected admin endpoint.
 
-### Optional H2 mode
-If you want to run the backend without PostgreSQL:
-```powershell
-mvn spring-boot:run "-Dspring-boot.run.profiles=h2"
-```
+### Production-like single-origin build
 
-The `h2` profile is the quick local bootstrap path:
-- it enables seed data automatically
-- it allows the known local development JWT secret
-- it keeps the default admin and sample API key available for local testing
+Build the Angular application, copy the exact output into Spring Boot's static
+resources, then package the backend:
 
-### Frontend production build
 ```powershell
 cd frontend
-npm run build
+npm ci
+npm run build:backend
+cd ..
+cd backend
+mvn clean package
 ```
+
+Run `target/backend-0.0.1-SNAPSHOT.jar` with PostgreSQL, a unique JWT secret,
+non-default database credentials, and explicit provisioning settings. The
+packaged backend serves the current SPA and API from `http://localhost:8080`.
+
+The sync script intentionally replaces only
+`backend/src/main/resources/static`; it validates the destination before doing
+so.
 
 ---
 
 ## Project Structure
 ```text
-New folder/
+Limitr/
 ├── backend/
 │   ├── src/main/java/com/limitr/
 │   │   ├── config/               # Security + API protection filters + data seeding

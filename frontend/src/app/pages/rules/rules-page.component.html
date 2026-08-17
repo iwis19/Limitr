@@ -3,7 +3,22 @@
 
   <article class="panel">
     <h3 class="pixel-type">Rate Limits + Thresholds</h3>
-    <form [formGroup]="ruleForm" (ngSubmit)="saveRules()" class="grid">
+    @if (loadingRules) {
+      <p class="load-state" role="status">Loading the current rules...</p>
+    }
+    @if (rulesLoadError) {
+      <div class="load-error" role="alert">
+        <span>{{ rulesLoadError }}</span>
+        <button type="button" (click)="loadRules()" [disabled]="loadingRules">Retry</button>
+      </div>
+    }
+
+    <form
+      [formGroup]="ruleForm"
+      (ngSubmit)="saveRules()"
+      class="grid"
+      [attr.aria-busy]="loadingRules"
+      >
       <label>Base limit/min
         <input type="number" formControlName="baseLimitPerMinute">
       </label>
@@ -22,7 +37,22 @@
       <label>Ban duration (minutes)
         <input type="number" formControlName="banMinutes">
       </label>
-      <button type="submit">Save Rules</button>
+      @if (ruleForm.hasError('rateLimitOrder') && ruleForm.touched) {
+        <p class="validation-error">
+          Throttled limit per minute cannot exceed the base limit.
+        </p>
+      }
+      @if (ruleForm.hasError('thresholdOrder') && ruleForm.touched) {
+        <p class="validation-error">
+          Thresholds must increase from warn to throttle to ban.
+        </p>
+      }
+      <button
+        type="submit"
+        [disabled]="!rulesLoaded || loadingRules || savingRules || ruleForm.invalid"
+        >
+        {{ savingRules ? 'Saving...' : 'Save Rules' }}
+      </button>
     </form>
   </article>
 
@@ -44,6 +74,10 @@
     </div>
   </article>
 
-  <p class="ok" *ngIf="message">{{ message }}</p>
-  <p class="error" *ngIf="error">{{ error }}</p>
+  @if (message) {
+    <p class="ok" role="status">{{ message }}</p>
+  }
+  @if (error) {
+    <p class="error" role="alert">{{ error }}</p>
+  }
 </section>

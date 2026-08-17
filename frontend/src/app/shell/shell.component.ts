@@ -1,5 +1,5 @@
-import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 
@@ -10,11 +10,11 @@ interface TopNavItem {
 }
 
 @Component({
-  selector: 'app-shell',
-  standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive],
-  templateUrl: './shell.component.html',
-  styleUrls: ['./shell.component.css']
+    selector: 'app-shell',
+    imports: [RouterOutlet, RouterLink, RouterLinkActive],
+    templateUrl: './shell.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
+    styleUrls: ['./shell.component.css']
 })
 export class ShellComponent implements OnInit {
   darkMode = localStorage.getItem('limitr_dark') === '1';

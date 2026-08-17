@@ -89,7 +89,7 @@ class AuthServiceTest {
 
         authService.register("first-admin", "password123");
 
-        verify(adminUserRepository).save(any(AdminUser.class));
+        verify(adminUserRepository).saveAndFlush(any(AdminUser.class));
     }
 
     @Test
@@ -104,7 +104,7 @@ class AuthServiceTest {
 
         assertEquals("Admin registration is closed.", exception.getMessage());
         verify(adminUserRepository, never()).findByUsername(any());
-        verify(adminUserRepository, never()).save(any(AdminUser.class));
+        verify(adminUserRepository, never()).saveAndFlush(any(AdminUser.class));
         verify(passwordEncoder, never()).encode(any());
     }
 
@@ -120,7 +120,7 @@ class AuthServiceTest {
         assertEquals("Admin registration is disabled.", exception.getMessage());
         verify(adminUserRepository, never()).count();
         verify(adminUserRepository, never()).findByUsername(any());
-        verify(adminUserRepository, never()).save(any(AdminUser.class));
+        verify(adminUserRepository, never()).saveAndFlush(any(AdminUser.class));
         verify(passwordEncoder, never()).encode(any());
     }
 
@@ -132,7 +132,7 @@ class AuthServiceTest {
 
         authService.createAdminUser("managed-admin", "password123");
 
-        verify(adminUserRepository).save(any(AdminUser.class));
+        verify(adminUserRepository).saveAndFlush(any(AdminUser.class));
     }
 
     private static AuthProperties authProperties(RegistrationMode registrationMode) {

@@ -1,77 +1,93 @@
 <section class="page">
   <header class="header">
     <h2 class="pixel-type">Overview</h2>
-    <button type="button" (click)="refresh()">Refresh</button>
+    <button type="button" (click)="refresh()" [disabled]="loading">Refresh</button>
   </header>
 
-  <div class="loading" *ngIf="loading">Loading metrics...</div>
-
-  <article class="status-panel panel" *ngIf="!loading && systemStatus as status">
-    <div class="status-panel__header">
-      <div>
-        <p class="status-panel__eyebrow pixel-type">System Status</p>
-        <h3>{{ status.label }}</h3>
-      </div>
-      <span
-        class="status-chip"
-        [class.status-chip--operational]="status.level === 'operational'"
-        [class.status-chip--warning]="status.level === 'warning'"
-        [class.status-chip--degraded]="status.level === 'degraded'">
-        {{ status.level }}
-      </span>
+  @if (loading) {
+    <div class="loading">Loading metrics...</div>
+  }
+  @if (error) {
+    <div class="error panel" role="alert">
+      <span>{{ error }}</span>
+      <button type="button" (click)="refresh()">Retry</button>
     </div>
+  }
 
-    <p class="status-panel__detail">{{ status.detail }}</p>
+  @if (!loading && systemStatus; as status) {
+    <article class="status-panel panel">
+      <div class="status-panel__header">
+        <div>
+          <p class="status-panel__eyebrow pixel-type">System Status</p>
+          <h3>{{ status.label }}</h3>
+        </div>
+        <span
+          class="status-chip"
+          [class.status-chip--operational]="status.level === 'operational'"
+          [class.status-chip--warning]="status.level === 'warning'"
+          [class.status-chip--degraded]="status.level === 'degraded'">
+          {{ status.level }}
+        </span>
+      </div>
+      <p class="status-panel__detail">{{ status.detail }}</p>
+      <div class="status-panel__metrics">
+        <div>
+          <span>5xx Last Hour</span>
+          <strong>{{ status.serverErrorsLastHour }}</strong>
+        </div>
+        <div>
+          <span>Active Bans</span>
+          <strong>{{ status.activeBans }}</strong>
+        </div>
+      </div>
+    </article>
+  }
 
-    <div class="status-panel__metrics">
-      <div>
-        <span>5xx Last Hour</span>
-        <strong>{{ status.serverErrorsLastHour }}</strong>
-      </div>
-      <div>
-        <span>Active Bans</span>
-        <strong>{{ status.activeBans }}</strong>
-      </div>
+  @if (!loading && stats) {
+    <div class="cards">
+      <article class="card">
+        <p>Requests / Minute</p>
+        <h3>{{ stats.requestsPerMinute || 0 }}</h3>
+      </article>
+      <article class="card">
+        <p>Active Bans</p>
+        <h3>{{ stats.activeBans || 0 }}</h3>
+      </article>
+      <article class="card">
+        <p>Base Limit</p>
+        <h3>{{ stats.rules?.baseLimitPerMinute || '-' }}</h3>
+      </article>
+      <article class="card">
+        <p>Throttled Limit</p>
+        <h3>{{ stats.rules?.throttledLimitPerMinute || '-' }}</h3>
+      </article>
     </div>
-  </article>
+  }
 
-  <div class="cards" *ngIf="!loading && stats">
-    <article class="card">
-      <p>Requests / Minute</p>
-      <h3>{{ stats.requestsPerMinute || 0 }}</h3>
+  @if (!loading && stats) {
+    <article class="panel">
+      <h3 class="pixel-type">Top Offenders (last hour)</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Principal</th>
+            <th>Incidents</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of stats?.topOffenders || []; track row) {
+            <tr>
+              <td>{{ row.principalId }}</td>
+              <td>{{ row.incidents }}</td>
+            </tr>
+          }
+          @if ((stats?.topOffenders || []).length === 0) {
+            <tr>
+              <td colspan="2">No offender data yet.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
     </article>
-    <article class="card">
-      <p>Active Bans</p>
-      <h3>{{ stats.activeBans || 0 }}</h3>
-    </article>
-    <article class="card">
-      <p>Base Limit</p>
-      <h3>{{ stats.rules?.baseLimitPerMinute || '-' }}</h3>
-    </article>
-    <article class="card">
-      <p>Throttled Limit</p>
-      <h3>{{ stats.rules?.throttledLimitPerMinute || '-' }}</h3>
-    </article>
-  </div>
-
-  <article class="panel" *ngIf="!loading">
-    <h3 class="pixel-type">Top Offenders (last hour)</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Principal</th>
-          <th>Incidents</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let row of stats?.topOffenders || []">
-          <td>{{ row.principalId }}</td>
-          <td>{{ row.incidents }}</td>
-        </tr>
-        <tr *ngIf="(stats?.topOffenders || []).length === 0">
-          <td colspan="2">No offender data yet.</td>
-        </tr>
-      </tbody>
-    </table>
-  </article>
+  }
 </section>
