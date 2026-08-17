@@ -9,7 +9,9 @@
       </div>
 
       <p class="panel-note profile-note">Profile controls for traffic analysis only.</p>
-      <p class="panel-note" *ngIf="lastUpdated">Last synced: {{ lastUpdated | date:'mediumTime' }}</p>
+      @if (lastUpdated) {
+        <p class="panel-note">Last synced: {{ lastUpdated | date:'mediumTime' }}</p>
+      }
 
       <div class="control-group">
         <span class="control-label">VOLUME BASELINE (REQ/M)</span>
@@ -25,7 +27,7 @@
             (input)="setRateLimit($event)"
             class="range-input"
             aria-label="Request rate limit"
-          />
+            />
         </div>
         <div class="range-caption">
           <span>1</span>
@@ -48,7 +50,7 @@
             (input)="setBurstTolerance($event)"
             class="range-input"
             aria-label="Burst tolerance"
-          />
+            />
         </div>
         <div class="range-caption">
           <span>1%</span>
@@ -61,20 +63,26 @@
 
       <div class="control-group">
         <span class="control-label">PROTECTION LAYERS</span>
-        <div class="toggle-row" *ngFor="let layer of protectionLayers; let i = index">
-          <span>{{ layer.label }}</span>
-          <button
-            type="button"
-            class="toggle-switch"
-            [class.active]="layer.active"
-            (click)="toggleLayer(i)"
-            [attr.aria-label]="layer.label"
-          ></button>
-        </div>
+        @for (layer of protectionLayers; track layer; let i = $index) {
+          <div class="toggle-row">
+            <span>{{ layer.label }}</span>
+            <button
+              type="button"
+              class="toggle-switch"
+              [class.active]="layer.active"
+              (click)="toggleLayer(i)"
+              [attr.aria-label]="layer.label"
+            ></button>
+          </div>
+        }
       </div>
 
-      <p class="ok-message" *ngIf="message">{{ message }}</p>
-      <p class="error-message" *ngIf="error">{{ error }}</p>
+      @if (message) {
+        <p class="ok-message">{{ message }}</p>
+      }
+      @if (error) {
+        <p class="error-message">{{ error }}</p>
+      }
 
       <div class="panel-actions">
         <button class="btn btn-secondary" (click)="resetConfig()">Reset</button>
@@ -146,21 +154,25 @@
       </div>
 
       <div class="incident-list">
-        <div class="incident-item" *ngFor="let incident of displayIncidents">
-          <div class="incident-meta">
-            <span class="incident-ip">{{ incident.principalId }}</span>
-            <span class="incident-time">{{ incident.timestamp | date:'short' }}</span>
+        @for (incident of displayIncidents; track incident) {
+          <div class="incident-item">
+            <div class="incident-meta">
+              <span class="incident-ip">{{ incident.principalId }}</span>
+              <span class="incident-time">{{ incident.timestamp | date:'short' }}</span>
+            </div>
+            <div class="status-badge" [class.status-blocked]="incident.actionTaken !== 'WARN'" [class.status-flagged]="incident.actionTaken === 'WARN'">
+              {{ incident.ruleTriggered }}
+            </div>
           </div>
-          <div class="status-badge" [class.status-blocked]="incident.actionTaken !== 'WARN'" [class.status-flagged]="incident.actionTaken === 'WARN'">
-            {{ incident.ruleTriggered }}
+        }
+        @if (displayIncidents.length === 0) {
+          <div class="incident-item">
+            <div class="incident-meta">
+              <span class="incident-ip">No incidents yet</span>
+              <span class="incident-time">Traffic is currently clean.</span>
+            </div>
           </div>
-        </div>
-        <div class="incident-item" *ngIf="displayIncidents.length === 0">
-          <div class="incident-meta">
-            <span class="incident-ip">No incidents yet</span>
-            <span class="incident-time">Traffic is currently clean.</span>
-          </div>
-        </div>
+        }
       </div>
 
       <div class="panel-actions">

@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { AdminApiService } from '../../services/admin-api.service';
 import { AdminStats, IncidentItem, RequestLogItem } from '../../services/admin-api.types';
+import { buildCsvRow } from '../../services/csv.util';
 
 interface ProtectionLayer {
   label: string;
@@ -11,11 +12,11 @@ interface ProtectionLayer {
 }
 
 @Component({
-  selector: 'app-traffic-page',
-  standalone: true,
-  imports: [CommonModule, RouterLink],
-  templateUrl: './traffic-page.component.html',
-  styleUrls: ['./traffic-page.component.css']
+    selector: 'app-traffic-page',
+    imports: [CommonModule, RouterLink],
+    templateUrl: './traffic-page.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
+    styleUrls: ['./traffic-page.component.css']
 })
 export class TrafficPageComponent implements OnInit {
   private readonly layerStorageKey = 'limitr_traffic_layers';
@@ -37,7 +38,7 @@ export class TrafficPageComponent implements OnInit {
   logs: RequestLogItem[] = [];
   incidents: IncidentItem[] = [];
 
-  protectionLayers: ProtectionLayer[] = [...this.defaultLayers];
+  protectionLayers: ProtectionLayer[] = this.createDefaultLayers();
   rateLimit = this.defaultRateLimit;
   burstTolerance = this.defaultBurstTolerance;
   lastUpdated: Date | null = null;
@@ -172,7 +173,7 @@ export class TrafficPageComponent implements OnInit {
   resetConfig(): void {
     this.message = '';
     this.error = '';
-    this.protectionLayers = [...this.defaultLayers];
+    this.protectionLayers = this.createDefaultLayers();
     this.rateLimit = this.defaultRateLimit;
     this.burstTolerance = this.defaultBurstTolerance;
     localStorage.setItem(this.layerStorageKey, JSON.stringify(this.protectionLayers));
@@ -193,20 +194,20 @@ export class TrafficPageComponent implements OnInit {
       return;
     }
 
-    const csvHeader = 'timestamp,principalId,ruleTriggered,score,actionTaken,expiresAt';
-    const csvBody = this.incidents
-      .map((item) =>
-        [
+    const csvRows = [
+      buildCsvRow(['timestamp', 'principalId', 'ruleTriggered', 'score', 'actionTaken', 'expiresAt']),
+      ...this.incidents.map((item) =>
+        buildCsvRow([
           item.timestamp,
           item.principalId,
           item.ruleTriggered,
           item.score,
           item.actionTaken,
           item.expiresAt ?? ''
-        ].join(',')
+        ])
       )
-      .join('\n');
-    const csv = `${csvHeader}\n${csvBody}`;
+    ];
+    const csv = csvRows.join('\r\n');
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -265,13 +266,16 @@ export class TrafficPageComponent implements OnInit {
     try {
       const parsed = JSON.parse(raw) as ProtectionLayer[];
       if (Array.isArray(parsed) && parsed.length === this.defaultLayers.length) {
-        const valid = parsed.every((item, index) => item.label === this.defaultLayers[index].label);
+        const valid = parsed.every(
+          (item, index) =>
+            item?.label === this.defaultLayers[index].label && typeof item.active === 'boolean'
+        );
         if (valid) {
-          this.protectionLayers = parsed;
+          this.protectionLayers = parsed.map((item) => ({ ...item }));
         }
       }
     } catch {
-      this.protectionLayers = [...this.defaultLayers];
+      this.protectionLayers = this.createDefaultLayers();
     }
   }
 
@@ -303,6 +307,10 @@ export class TrafficPageComponent implements OnInit {
         burstTolerance: this.burstTolerance
       })
     );
+  }
+
+  private createDefaultLayers(): ProtectionLayer[] {
+    return this.defaultLayers.map((layer) => ({ ...layer }));
   }
 
   private toPercent(value: number, max: number): number {

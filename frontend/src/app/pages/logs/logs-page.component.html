@@ -7,46 +7,63 @@
     <input formControlName="principalId" placeholder="Principal ID" />
     <input formControlName="statusCode" placeholder="Status code (e.g., 429)" />
     <div class="actions">
-      <button type="submit">Filter</button>
-      <button type="button" (click)="clearFilters()">Clear</button>
+      <button type="submit" [disabled]="loading">Filter</button>
+      <button type="button" (click)="clearFilters()" [disabled]="loading">Clear</button>
       <button type="button" (click)="exportCsv()" [disabled]="loading || rows.length === 0">Export CSV</button>
     </div>
   </form>
 
-  <article class="summary" *ngIf="!loading">
-    <p><strong>{{ rows.length }}</strong> rows</p>
-    <p><strong>{{ errorResponsesCount }}</strong> errors (4xx/5xx)</p>
-    <p><strong>{{ averageLatencyMs }}</strong> ms avg latency</p>
-  </article>
+  @if (error) {
+    <div class="error" role="alert">
+      <span>{{ error }}</span>
+      <button type="button" (click)="search()">Retry</button>
+    </div>
+  }
+
+  @if (!loading && !error) {
+    <article class="summary">
+      <p><strong>{{ rows.length }}</strong> rows</p>
+      <p><strong>{{ errorResponsesCount }}</strong> errors (4xx/5xx)</p>
+      <p><strong>{{ averageLatencyMs }}</strong> ms avg latency</p>
+    </article>
+  }
 
   <div class="table-wrap">
-    <div *ngIf="loading" class="loading">Loading logs...</div>
-    <table *ngIf="!loading">
-      <thead>
-        <tr>
-          <th>Timestamp</th>
-          <th>Principal</th>
-          <th>IP</th>
-          <th>Method</th>
-          <th>Path</th>
-          <th>Status</th>
-          <th>Latency (ms)</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let row of rows">
-          <td>{{ row.timestamp | date:'medium' }}</td>
-          <td>{{ row.principalId }}</td>
-          <td>{{ row.ipAddress }}</td>
-          <td>{{ row.httpMethod }}</td>
-          <td>{{ row.path }}</td>
-          <td>{{ row.statusCode }}</td>
-          <td>{{ row.latencyMs }}</td>
-        </tr>
-        <tr *ngIf="rows.length === 0">
-          <td colspan="7">No logs found.</td>
-        </tr>
-      </tbody>
-    </table>
+    @if (loading) {
+      <div class="loading">Loading logs...</div>
+    }
+    @if (!loading && !error) {
+      <table>
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Principal</th>
+            <th>IP</th>
+            <th>Method</th>
+            <th>Path</th>
+            <th>Status</th>
+            <th>Latency (ms)</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows; track row) {
+            <tr>
+              <td>{{ row.timestamp | date:'medium' }}</td>
+              <td>{{ row.principalId }}</td>
+              <td>{{ row.ipAddress }}</td>
+              <td>{{ row.httpMethod }}</td>
+              <td>{{ row.path }}</td>
+              <td>{{ row.statusCode }}</td>
+              <td>{{ row.latencyMs }}</td>
+            </tr>
+          }
+          @if (rows.length === 0) {
+            <tr>
+              <td colspan="7">No logs found.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
   </div>
 </section>

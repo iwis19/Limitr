@@ -38,6 +38,18 @@ button:disabled {
   cursor: not-allowed;
 }
 
+.error {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  border-radius: var(--radius-card);
+  padding: 0.75rem 1rem;
+  color: #ffb1a7;
+}
+
 .summary {
   display: flex;
   gap: var(--space-sm);

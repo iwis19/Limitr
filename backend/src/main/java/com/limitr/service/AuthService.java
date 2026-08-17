@@ -4,12 +4,15 @@ import com.limitr.config.AuthProperties;
 import com.limitr.config.RegistrationMode;
 import com.limitr.domain.AdminUser;
 import com.limitr.repository.AdminUserRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuthService {
+
+    private static final String PUBLIC_BOOTSTRAP_REGISTRATION_KEY = "PUBLIC_BOOTSTRAP";
 
     private final AdminUserRepository adminUserRepository;
     private final PasswordEncoder passwordEncoder;
@@ -41,7 +44,13 @@ public class AuthService {
             throw new IllegalStateException("Admin registration is closed.");
         }
 
-        createAdminUser(username, password);
+        try {
+            persistAdminUser(username, password, PUBLIC_BOOTSTRAP_REGISTRATION_KEY);
+        } catch (DataIntegrityViolationException exception) {
+            // The unique bootstrap key is the database-level guard for concurrent
+            // first-admin requests across threads and application instances.
+            throw new IllegalStateException("Admin registration is closed.", exception);
+        }
     }
 
     @Transactional
@@ -50,11 +59,20 @@ public class AuthService {
             throw new IllegalArgumentException("Username is already registered.");
         }
 
+        try {
+            persistAdminUser(username, password, null);
+        } catch (DataIntegrityViolationException exception) {
+            throw new IllegalArgumentException("Username is already registered.", exception);
+        }
+    }
+
+    private void persistAdminUser(String username, String password, String bootstrapRegistrationKey) {
         AdminUser adminUser = new AdminUser();
         adminUser.setUsername(username);
         adminUser.setPasswordHash(passwordEncoder.encode(password));
         adminUser.setRole("ADMIN");
-        adminUserRepository.save(adminUser);
+        adminUser.setBootstrapRegistrationKey(bootstrapRegistrationKey);
+        adminUserRepository.saveAndFlush(adminUser);
     }
 
     public String login(String username, String password) {

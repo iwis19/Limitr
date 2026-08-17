@@ -2,37 +2,51 @@
   <header class="header">
     <h2 class="pixel-type">Incidents</h2>
     <label class="toggle">
-      <input type="checkbox" [checked]="activeOnly" (change)="activeOnly = !activeOnly; load()">
+      <input type="checkbox" [checked]="activeOnly" [disabled]="loading" (change)="activeOnly = !activeOnly; load()">
       Active bans only
     </label>
   </header>
 
   <div class="panel">
-    <div *ngIf="loading">Loading incidents...</div>
-    <table *ngIf="!loading">
-      <thead>
-        <tr>
-          <th>Timestamp</th>
-          <th>Principal</th>
-          <th>Rule Triggered</th>
-          <th>Score</th>
-          <th>Action</th>
-          <th>Expires</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let row of rows">
-          <td>{{ row.timestamp | date:'medium' }}</td>
-          <td>{{ row.principalId }}</td>
-          <td>{{ row.ruleTriggered }}</td>
-          <td>{{ row.score }}</td>
-          <td>{{ row.actionTaken }}</td>
-          <td>{{ row.expiresAt ? (row.expiresAt | date:'medium') : '-' }}</td>
-        </tr>
-        <tr *ngIf="rows.length === 0">
-          <td colspan="6">No incidents found.</td>
-        </tr>
-      </tbody>
-    </table>
+    @if (loading) {
+      <div class="state-message">Loading incidents...</div>
+    }
+    @if (error) {
+      <div class="state-message error" role="alert">
+        <span>{{ error }}</span>
+        <button type="button" (click)="load()">Retry</button>
+      </div>
+    }
+    @if (!loading && !error) {
+      <table>
+        <thead>
+          <tr>
+            <th>Timestamp</th>
+            <th>Principal</th>
+            <th>Rule Triggered</th>
+            <th>Score</th>
+            <th>Action</th>
+            <th>Expires</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows; track row) {
+            <tr>
+              <td>{{ row.timestamp | date:'medium' }}</td>
+              <td>{{ row.principalId }}</td>
+              <td>{{ row.ruleTriggered }}</td>
+              <td>{{ row.score }}</td>
+              <td>{{ row.actionTaken }}</td>
+              <td>{{ row.expiresAt ? (row.expiresAt | date:'medium') : '-' }}</td>
+            </tr>
+          }
+          @if (rows.length === 0) {
+            <tr>
+              <td colspan="6">No incidents found.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
   </div>
 </section>

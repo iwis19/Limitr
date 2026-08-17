@@ -46,11 +46,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String username = jwtService.extractUsername(jwt);
                 AdminUser user = adminUserRepository.findByUsername(username).orElse(null);
 
-                if (user != null && jwtService.isTokenValid(jwt, username)) {
+                if (user != null && "ADMIN".equals(user.getRole()) && jwtService.isTokenValid(jwt, username)) {
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         username,
                         null,
-                        List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                        List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole()))
                     );
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);

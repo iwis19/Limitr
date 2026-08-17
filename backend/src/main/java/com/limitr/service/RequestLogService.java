@@ -40,15 +40,20 @@ public class RequestLogService {
     }
 
     public long serverErrorsLastHour() {
-        Instant oneHourAgo = Instant.now().minusSeconds(3600);
-        return requestLogRepository.findTop200ByOrderByTimestampDesc().stream()
-            .filter(log -> log.getTimestamp() != null && log.getTimestamp().isAfter(oneHourAgo))
-            .filter(log -> log.getStatusCode() != null && log.getStatusCode() >= 500)
-            .count();
+        return requestLogRepository.countByTimestampAfterAndStatusCodeGreaterThanEqual(
+            Instant.now().minusSeconds(3600),
+            500
+        );
     }
 
     public List<RequestLog> findRecent(String principalId, Integer statusCode) {
         if (principalId != null && !principalId.isBlank()) {
+            if (statusCode != null) {
+                return requestLogRepository.findTop200ByPrincipalIdAndStatusCodeOrderByTimestampDesc(
+                    principalId,
+                    statusCode
+                );
+            }
             return requestLogRepository.findTop200ByPrincipalIdOrderByTimestampDesc(principalId);
         }
         if (statusCode != null) {

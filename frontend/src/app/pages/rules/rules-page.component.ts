@@ -1,28 +1,70 @@
-import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  AbstractControl,
+  FormBuilder,
+  ReactiveFormsModule,
+  ValidationErrors,
+  ValidatorFn,
+  Validators
+} from '@angular/forms';
 import { AdminApiService } from '../../services/admin-api.service';
 
+const ruleRelationshipValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
+  const baseLimit = control.get('baseLimitPerMinute')?.value;
+  const throttledLimit = control.get('throttledLimitPerMinute')?.value;
+  const warnThreshold = control.get('warnThreshold')?.value;
+  const throttleThreshold = control.get('throttleThreshold')?.value;
+  const banThreshold = control.get('banThreshold')?.value;
+  const errors: ValidationErrors = {};
+
+  if (
+    typeof baseLimit === 'number' &&
+    typeof throttledLimit === 'number' &&
+    throttledLimit > baseLimit
+  ) {
+    errors['rateLimitOrder'] = true;
+  }
+
+  if (
+    typeof warnThreshold === 'number' &&
+    typeof throttleThreshold === 'number' &&
+    typeof banThreshold === 'number' &&
+    !(warnThreshold < throttleThreshold && throttleThreshold < banThreshold)
+  ) {
+    errors['thresholdOrder'] = true;
+  }
+
+  return Object.keys(errors).length > 0 ? errors : null;
+};
+
 @Component({
-  selector: 'app-rules-page',
-  standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
-  templateUrl: './rules-page.component.html',
-  styleUrls: ['./rules-page.component.css']
+    selector: 'app-rules-page',
+    imports: [ReactiveFormsModule],
+    templateUrl: './rules-page.component.html',
+    changeDetection: ChangeDetectionStrategy.Eager,
+    styleUrls: ['./rules-page.component.css']
 })
 export class RulesPageComponent implements OnInit {
   message = '';
   error = '';
+  loadingRules = true;
+  rulesLoaded = false;
+  rulesLoadError = '';
+  savingRules = false;
 
-  ruleForm = this.formBuilder.group({
-    baseLimitPerMinute: [60, [Validators.required, Validators.min(1)]],
-    throttledLimitPerMinute: [20, [Validators.required, Validators.min(1)]],
-    warnThreshold: [2, [Validators.required, Validators.min(0)]],
-    throttleThreshold: [4, [Validators.required, Validators.min(1)]],
-    banThreshold: [7, [Validators.required, Validators.min(1)]],
-    banMinutes: [15, [Validators.required, Validators.min(1)]]
-  });
+  ruleForm = this.formBuilder.group(
+    {
+      baseLimitPerMinute: [60, [Validators.required, Validators.min(1)]],
+      throttledLimitPerMinute: [20, [Validators.required, Validators.min(1)]],
+      warnThreshold: [2, [Validators.required, Validators.min(0)]],
+      throttleThreshold: [4, [Validators.required, Validators.min(1)]],
+      banThreshold: [7, [Validators.required, Validators.min(1)]],
+      banMinutes: [15, [Validators.required, Validators.min(1)]]
+    },
+    { validators: ruleRelationshipValidator }
+  );
 
   banForm = this.formBuilder.group({
     principalId: ['', Validators.required],
@@ -39,10 +81,18 @@ export class RulesPageComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.ruleForm.disable({ emitEvent: false });
     this.loadRules();
   }
 
   loadRules(): void {
+    this.loadingRules = true;
+    this.rulesLoaded = false;
+    this.rulesLoadError = '';
+    this.message = '';
+    this.error = '';
+    this.ruleForm.disable({ emitEvent: false });
+
     this.adminApiService.getStats().subscribe({
       next: (response) => {
         const rules = response.rules;
@@ -54,6 +104,16 @@ export class RulesPageComponent implements OnInit {
           banThreshold: rules.banThreshold,
           banMinutes: rules.banMinutes
         });
+        this.ruleForm.enable({ emitEvent: false });
+        this.ruleForm.updateValueAndValidity({ emitEvent: false });
+        this.ruleForm.markAsPristine();
+        this.ruleForm.markAsUntouched();
+        this.rulesLoaded = true;
+        this.loadingRules = false;
+      },
+      error: () => {
+        this.loadingRules = false;
+        this.rulesLoadError = 'Unable to load the current rules. The form remains locked to prevent an unsafe overwrite.';
       }
     });
   }
@@ -61,17 +121,26 @@ export class RulesPageComponent implements OnInit {
   saveRules(): void {
     this.message = '';
     this.error = '';
+    if (!this.rulesLoaded || this.loadingRules || this.savingRules) {
+      this.error = 'Load the current rule configuration before saving changes.';
+      return;
+    }
+
     if (this.ruleForm.invalid) {
       this.ruleForm.markAllAsTouched();
       return;
     }
 
+    this.savingRules = true;
     const payload = this.ruleForm.getRawValue();
     this.adminApiService.updateRules(payload).subscribe({
       next: () => {
+        this.savingRules = false;
+        this.ruleForm.markAsPristine();
         this.message = 'Rules updated successfully.';
       },
       error: (error: HttpErrorResponse) => {
+        this.savingRules = false;
         this.error = this.extractErrorMessage(error, 'Unable to update rules.');
       }
     });

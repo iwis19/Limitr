@@ -29,6 +29,27 @@
   overflow: auto;
 }
 
+.state-message {
+  padding: var(--space-md);
+}
+
+.error {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  color: #ffb1a7;
+}
+
+.error button {
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+  border-radius: var(--radius-pill);
+  padding: 0.55rem 0.95rem;
+  cursor: pointer;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;

@@ -10,21 +10,22 @@
       </div>
 
       <nav class="top-nav-pills">
-        <a
-          *ngFor="let item of topNav"
-          [routerLink]="item.route"
-          routerLinkActive="active"
-          [routerLinkActiveOptions]="{ exact: true }"
-          class="top-nav-item"
-        >
-          {{ item.label }}
-        </a>
+        @for (item of topNav; track item) {
+          <a
+            [routerLink]="item.route"
+            routerLinkActive="active"
+            [routerLinkActiveOptions]="{ exact: true }"
+            class="top-nav-item"
+            >
+            {{ item.label }}
+          </a>
+        }
       </nav>
 
       <div class="header-right">
         <div class="top-status pixel-type">
           <div class="status-dot"></div>
-          SYSTEM OPERATIONAL
+          ADMIN CONSOLE
         </div>
         <button type="button" class="header-btn" (click)="toggleTheme()">
           {{ darkMode ? 'Light Mode' : 'Dark Mode' }}

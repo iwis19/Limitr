@@ -4,6 +4,7 @@ import java.util.List;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -23,10 +24,17 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final ApiProtectionFilter apiProtectionFilter;
+    private final List<String> allowedOrigins;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, ApiProtectionFilter apiProtectionFilter) {
+    public SecurityConfig(
+        JwtAuthenticationFilter jwtAuthenticationFilter,
+        ApiProtectionFilter apiProtectionFilter,
+        @Value("${app.cors.allowed-origins:http://localhost:4200,http://127.0.0.1:4200}")
+        List<String> allowedOrigins
+    ) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.apiProtectionFilter = apiProtectionFilter;
+        this.allowedOrigins = List.copyOf(allowedOrigins);
     }
 
     @Bean
@@ -34,6 +42,17 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .cors(Customizer.withDefaults())
+            .headers(headers -> headers.contentSecurityPolicy(csp -> csp.policyDirectives(
+                "default-src 'self'; " +
+                "base-uri 'self'; " +
+                "connect-src 'self'; " +
+                "font-src 'self' https://fonts.gstatic.com; " +
+                "frame-ancestors 'none'; " +
+                "img-src 'self' data:; " +
+                "object-src 'none'; " +
+                "script-src 'self'; " +
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com"
+            )))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(
                 (request, response, exception) -> response.sendError(HttpServletResponse.SC_UNAUTHORIZED)
@@ -46,11 +65,18 @@ public class SecurityConfig {
                     "/assets/**",
                     "/*.js",
                     "/*.css",
-                    "/auth/**"
+                    "/auth/**",
+                    "/login",
+                    "/dashboard",
+                    "/traffic",
+                    "/logs",
+                    "/incidents",
+                    "/rules",
+                    "/api/**"
                 ).permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/admin/**").authenticated()
-                .anyRequest().permitAll()
+                .requestMatchers("/admin/**").hasRole("ADMIN")
+                .anyRequest().denyAll()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterAfter(apiProtectionFilter, JwtAuthenticationFilter.class);
@@ -71,9 +97,14 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:4200", "http://127.0.0.1:4200"));
+        configuration.setAllowedOrigins(allowedOrigins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
+        configuration.setExposedHeaders(List.of(
+            "X-RateLimit-Limit",
+            "X-RateLimit-Remaining",
+            "Retry-After"
+        ));
         configuration.setAllowCredentials(false);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
